@@ -583,8 +583,10 @@ class BoxScreen extends StatefulWidget {
 
 class _BoxScreenState extends State<BoxScreen> {
   bool _gridView = true;
-  Map<String, dynamic>? _liveData;
+  Map<String, dynamic>? _liveData;          // from ESP32 HTTP (local network)
+  Map<String, dynamic>? _firestoreLiveData; // from Firestore live_status/current (HTTPS)
   Timer? _timer;
+  StreamSubscription<DocumentSnapshot>? _liveStatusSub;
   bool _deviceOnline = false;
 
   @override
@@ -592,11 +594,25 @@ class _BoxScreenState extends State<BoxScreen> {
     super.initState();
     _pollLive();
     _timer = Timer.periodic(const Duration(seconds: 10), (_) => _pollLive());
+    // Subscribe to Firestore live_status/current — works from HTTPS PWA
+    _liveStatusSub = FirebaseFirestore.instance
+        .collection('live_status')
+        .doc('current')
+        .snapshots()
+        .listen((snap) {
+      if (mounted) {
+        setState(() {
+          _firestoreLiveData = snap.exists ? (snap.data() as Map<String, dynamic>?) : null;
+          _deviceOnline = _liveData != null || _firestoreLiveData != null;
+        });
+      }
+    });
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _liveStatusSub?.cancel();
     super.dispose();
   }
 
@@ -605,21 +621,23 @@ class _BoxScreenState extends State<BoxScreen> {
     if (mounted) {
       setState(() {
         _liveData = data;
-        _deviceOnline = data != null;
+        _deviceOnline = data != null || _firestoreLiveData != null;
       });
     }
   }
 
   ToolStatus _statusFor(AppTool t, List<ToolLog> logs) {
-    // Prefer live ESP32 data
-    if (_liveData != null) {
-      final key = t.name.toLowerCase();
-      if (_liveData!.containsKey(key)) {
-        return _liveData![key] == true ? ToolStatus.checkedOut : ToolStatus.present;
-      }
+    final key = t.name.toLowerCase();
+    // 1. Prefer direct ESP32 HTTP (low latency, local network only)
+    if (_liveData != null && _liveData!.containsKey(key)) {
+      return _liveData![key] == true ? ToolStatus.checkedOut : ToolStatus.present;
     }
-    // Fall back to Firestore logs
-    final toolLogs = logs.where((l) => l.tool.toLowerCase() == t.name.toLowerCase()).toList();
+    // 2. Fall back to Firestore live_status (works from HTTPS PWA everywhere)
+    if (_firestoreLiveData != null && _firestoreLiveData!.containsKey(key)) {
+      return _firestoreLiveData![key] == true ? ToolStatus.checkedOut : ToolStatus.present;
+    }
+    // 3. Fall back to Firestore tool_logs history
+    final toolLogs = logs.where((l) => l.tool.toLowerCase() == key).toList();
     if (toolLogs.isEmpty) return ToolStatus.present;
     return toolLogs.first.isTaken ? ToolStatus.checkedOut : ToolStatus.present;
   }
@@ -701,8 +719,11 @@ class _BoxScreenState extends State<BoxScreen> {
                         const SizedBox(width: 10),
                         Expanded(child: _statChip('Checked Out', '$outCount', C.checkedOut)),
                         const SizedBox(width: 10),
-                        Expanded(child: _statChip('Device', _deviceOnline ? 'On' : 'Off',
-                            _deviceOnline ? C.present : C.ink3)),
+                        Expanded(child: _statChip(
+                            'Device',
+                            _liveData != null ? 'Local' : (_firestoreLiveData != null ? 'Cloud' : 'Off'),
+                            (_liveData != null || _firestoreLiveData != null) ? C.present : C.ink3,
+                        )),
                       ]),
                       const SizedBox(height: 16),
 

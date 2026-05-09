@@ -1,0 +1,49 @@
+workflows:
+  ios-unsigned-altstore:
+    name: iOS Unsigned IPA (AltStore / Free Apple ID)
+    max_build_duration: 60
+    instance_type: mac_mini_m2   # free tier — 500 min/month, no credit card
+
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+
+    scripts:
+      - name: Get Flutter packages
+        script: |
+          cd toolbox_app
+          flutter pub get
+
+      - name: Install CocoaPods dependencies
+        script: |
+          cd toolbox_app/ios
+          pod install
+
+      - name: Build iOS (no code signing)
+        script: |
+          cd toolbox_app
+          flutter build ios \
+            --release \
+            --no-codesign
+
+      - name: Package into unsigned .ipa
+        script: |
+          cd toolbox_app
+          mkdir -p build/ios/ipa/Payload
+          cp -r build/ios/Release-iphoneos/Runner.app build/ios/ipa/Payload/
+          cd build/ios/ipa
+          zip -r ToolTrack.ipa Payload/
+          echo "IPA ready: $(pwd)/ToolTrack.ipa"
+
+    artifacts:
+      # path is relative to repo root
+      - toolbox_app/build/ios/ipa/ToolTrack.ipa
+
+    publishing:
+      email:
+        recipients:
+          - your@email.com   # replace with your email
+        notify:
+          success: true
+          failure: true

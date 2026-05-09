@@ -51,9 +51,13 @@
 #define FIREBASE_PROJECT_ID  "smart-toolbox-b0455"
 #define FIREBASE_API_KEY     "AIzaSyCYQFnhupq9GiL7P0D5VeIftWvh3ePTKSs"
 // Firestore REST endpoint
-String firestoreBase = "https://firestore.googleapis.com/v1/projects/" 
-                        FIREBASE_PROJECT_ID 
+String firestoreBase = "https://firestore.googleapis.com/v1/projects/"
+                        FIREBASE_PROJECT_ID
                         "/databases/(default)/documents/tool_logs";
+// Live status document (PATCH to update, readable by Flutter PWA over HTTPS)
+String firestoreLiveUrl = "https://firestore.googleapis.com/v1/projects/"
+                           FIREBASE_PROJECT_ID
+                           "/databases/(default)/documents/live_status/current";
 
 // ─── GLOBALS ──────────────────────────────────────────────────────
 MFRC522 rfid(SS_PIN, RST_PIN);
@@ -67,6 +71,8 @@ String currentUserName   = "";
 String currentUserUID    = "";
 unsigned long solenoidOpenTime = 0;
 #define SOLENOID_TIMEOUT 10000  // 10 seconds
+unsigned long lastLivePush = 0;
+#define LIVE_PUSH_INTERVAL 30000  // push heartbeat every 30s
 
 // Tool states (true = taken out)
 bool toolCaliper    = false;
@@ -256,6 +262,42 @@ void logToFirestore(String userName, String uid, String drawer, String tool, Str
     webLog("[FIRESTORE] ✗ Error: HTTP " + String(code) + " - " + tool);
   }
   http.end();
+}
+
+// ─── FIRESTORE: Push live tool status ─────────────────────────────
+void pushLiveStatus() {
+  if (WiFi.status() != WL_CONNECTED) return;
+
+  HTTPClient http;
+  String url = firestoreLiveUrl + "?key=" + FIREBASE_API_KEY;
+  http.begin(url);
+  http.addHeader("Content-Type", "application/json");
+
+  StaticJsonDocument<512> doc;
+  JsonObject fields = doc.createNestedObject("fields");
+  fields["caliper"]["booleanValue"]    = toolCaliper;
+  fields["plier"]["booleanValue"]      = toolPlier;
+  fields["micrometer"]["booleanValue"] = toolMicrometer;
+  fields["tweezer"]["booleanValue"]    = toolTweezer;
+  fields["drawer1"]["booleanValue"]    = drawerOpen;
+  fields["updatedAt"]["stringValue"]   = getTimestamp();
+
+  struct tm timeinfo;
+  if (getLocalTime(&timeinfo)) {
+    fields["epochMs"]["integerValue"] = String((long long)mktime(&timeinfo) * 1000LL);
+  }
+
+  String body;
+  serializeJson(doc, body);
+
+  int code = http.sendRequest("PATCH", body);
+  if (code == 200) {
+    webLog("[FIRESTORE] ✓ Live status pushed");
+  } else {
+    webLog("[FIRESTORE] ✗ Live status failed: HTTP " + String(code));
+  }
+  http.end();
+  lastLivePush = millis();
 }
 
 // ─── SOLENOID CONTROL ─────────────────────────────────────────────
@@ -844,6 +886,11 @@ void setup() {
 void loop() {
   server.handleClient();
 
+  // ── Push live status heartbeat every 30s ────────────────────────
+  if (millis() - lastLivePush > LIVE_PUSH_INTERVAL) {
+    pushLiveStatus();
+  }
+
   // ── Auto-lock solenoid after timeout ────────────────────────────
   if (solenoidOpenTime > 0 && millis() - solenoidOpenTime > SOLENOID_TIMEOUT) {
     closeSolenoid();
@@ -886,6 +933,7 @@ void loop() {
     } else {
       webLog("[DRAWER 1] CLOSED");
     }
+    pushLiveStatus();
   }
 
   // ── Tool buttons (LOW = pressed = tool taken, with debounce) ─────
@@ -893,6 +941,7 @@ void loop() {
   bool calNow = readDebounced(btns[0]);
   if (calNow != toolCaliper) {
     toolCaliper = calNow;
+    pushLiveStatus();
     if (toolCaliper && currentUserName.length() > 0) {
       String ts = getTimestamp();
       webLog("[TOOL] CALIPER - TAKEN by " + currentUserName + " | " + ts);
@@ -909,6 +958,7 @@ void loop() {
   bool pliNow = readDebounced(btns[1]);
   if (pliNow != toolPlier) {
     toolPlier = pliNow;
+    pushLiveStatus();
     if (toolPlier && currentUserName.length() > 0) {
       String ts = getTimestamp();
       webLog("[TOOL] PLIER - TAKEN by " + currentUserName + " | " + ts);
@@ -925,6 +975,7 @@ void loop() {
   bool micNow = readDebounced(btns[2]);
   if (micNow != toolMicrometer) {
     toolMicrometer = micNow;
+    pushLiveStatus();
     if (toolMicrometer && currentUserName.length() > 0) {
       String ts = getTimestamp();
       webLog("[TOOL] MICROMETER - TAKEN by " + currentUserName + " | " + ts);
@@ -941,6 +992,7 @@ void loop() {
   bool tweNow = readDebounced(btns[3]);
   if (tweNow != toolTweezer) {
     toolTweezer = tweNow;
+    pushLiveStatus();
     if (toolTweezer && currentUserName.length() > 0) {
       String ts = getTimestamp();
       webLog("[TOOL] TWEEZER - TAKEN by " + currentUserName + " | " + ts);

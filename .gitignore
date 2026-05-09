@@ -1,0 +1,48 @@
+# ===== Flutter / Dart =====
+toolbox_app/.dart_tool/
+toolbox_app/.flutter-plugins
+toolbox_app/.flutter-plugins-dependencies
+toolbox_app/build/
+toolbox_app/.packages
+toolbox_app/pubspec.lock
+
+# ===== iOS (inside Flutter project) =====
+toolbox_app/ios/Pods/
+toolbox_app/ios/.symlinks/
+toolbox_app/ios/Flutter/Flutter.framework
+toolbox_app/ios/Flutter/Flutter.podspec
+
+# ===== Android (inside Flutter project) =====
+toolbox_app/android/.gradle/
+toolbox_app/android/local.properties
+toolbox_app/android/captures/
+
+# ===== PlatformIO (ESP32) =====
+tool box test/.pio/
+tool box test/.vscode/
+tool box test/cmake-build*/
+
+# ===== Code signing — NEVER commit these =====
+*.p12
+*.p8
+*.mobileprovision
+*.certSigningRequest
+*.cer
+*.key
+
+# ===== Firebase =====
+toolbox_app/google-services.json
+toolbox_app/GoogleService-Info.plist
+
+# ===== OS / Editor =====
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/settings.json
+*.suo
+*.user
+
+# ===== Secrets =====
+.env
+.env.*
+secrets.*
