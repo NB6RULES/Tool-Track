@@ -76,10 +76,22 @@ class AppTool {
 
 // Known physical tools
 final kTools = [
-  AppTool(id: 'A-01', name: 'Caliper',    cat: 'measure',    catColor: C.catMeas),
-  AppTool(id: 'A-02', name: 'Plier',      cat: 'hand',       catColor: C.catHand),
-  AppTool(id: 'A-03', name: 'Micrometer', cat: 'measure',    catColor: C.catMeas),
-  AppTool(id: 'A-04', name: 'Tweezer',    cat: 'electrical', catColor: C.catElec),
+  AppTool(id: 'S-01', name: 'Digital calipers',   cat: 'measure',    catColor: C.catMeas),
+  AppTool(id: 'S-02', name: 'Soldering iron',     cat: 'electrical', catColor: C.catElec),
+  AppTool(id: 'S-03', name: 'Wire stripper',      cat: 'hand',       catColor: C.catHand),
+  AppTool(id: 'S-04', name: 'Multimeter',         cat: 'measure',    catColor: C.catMeas),
+  AppTool(id: 'S-05', name: 'Hex key set',        cat: 'hand',       catColor: C.catHand),
+  AppTool(id: 'S-06', name: 'Oscilloscope probe', cat: 'measure',    catColor: C.catMeas),
+  AppTool(id: 'S-07', name: 'Flush cutters',      cat: 'hand',       catColor: C.catHand),
+  AppTool(id: 'S-08', name: 'Heat gun',           cat: 'electrical', catColor: C.catElec),
+  AppTool(id: 'S-09', name: 'Label maker',        cat: 'hand',       catColor: C.catHand),
+  AppTool(id: 'S-10', name: 'Breadboard kit',     cat: 'electrical', catColor: C.catElec),
+  AppTool(id: 'S-11', name: 'Crimping tool',      cat: 'hand',       catColor: C.catHand),
+  AppTool(id: 'S-12', name: 'Torque screwdriver', cat: 'hand',       catColor: C.catHand),
+  AppTool(id: 'S-13', name: 'PCB holder',         cat: 'electrical', catColor: C.catElec),
+  AppTool(id: 'S-14', name: 'USB power meter',    cat: 'measure',    catColor: C.catMeas),
+  AppTool(id: 'S-15', name: 'Tweezers set',       cat: 'hand',       catColor: C.catHand),
+  AppTool(id: 'S-16', name: 'Step drill bits',    cat: 'hand',       catColor: C.catHand),
 ];
 
 // ─── Log Model ───────────────────────────────────────────────────────────────
@@ -1117,8 +1129,24 @@ class _MembersScreenState extends State<MembersScreen> {
 
   Future<void> _load() async {
     setState(() => _loading = true);
+    // Try ESP32 first
     final users = await _esp.getUsers();
-    if (mounted) setState(() { _users = users; _loading = false; });
+    if (users.isNotEmpty) {
+      if (mounted) setState(() { _users = users; _loading = false; });
+      return;
+    }
+    // Fall back: extract unique members from Firestore tool_logs
+    final snap = await FirebaseFirestore.instance.collection('tool_logs').limit(500).get();
+    final seen = <String, String>{};
+    for (final doc in snap.docs) {
+      final d = doc.data();
+      final name = d['userName'] as String? ?? '';
+      final uid = d['uid'] as String? ?? '';
+      if (name.isNotEmpty && !seen.containsKey(name)) seen[name] = uid;
+    }
+    final fallback = seen.entries.map((e) => {'name': e.key, 'uid': e.value}).toList();
+    fallback.sort((a, b) => (a['name']!).compareTo(b['name']!));
+    if (mounted) setState(() { _users = fallback; _loading = false; });
   }
 
   @override
