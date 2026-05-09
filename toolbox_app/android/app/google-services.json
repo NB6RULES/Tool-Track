@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "471683042983",
+    "project_id": "smart-toolbox-b0455",
+    "storage_bucket": "smart-toolbox-b0455.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:471683042983:android:8a038e1da9f462a837d582",
+        "android_client_info": {
+          "package_name": "com.layer6.tooltrack"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD7RvBllF-aHS8zPZ_9-zYt7PJMfVBeitU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

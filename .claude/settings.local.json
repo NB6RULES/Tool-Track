@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(flutter analyze:*)",
+      "Skill(update-config)",
+      "Bash(flutter emulators:*)",
+      "Bash(flutter devices:*)",
+      "Bash(sdkmanager --list)",
+      "Bash(echo $ANDROID_HOME)",
+      "Bash(echo $ANDROID_SDK_ROOT)",
+      "Bash(where sdkmanager:*)",
+      "Bash(where avdmanager:*)",
+      "Read(//c/Users/nadec/AppData/Local/Android/Sdk/cmdline-tools/**)",
+      "Read(//c/Users/nadec/AppData/Local/Android/Sdk/system-images/**)",
+      "Bash(\"C:\\\\Users\\\\nadec\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\cmdline-tools\\\\latest\\\\bin\\\\avdmanager.bat\" create:*)"
+    ]
+  }
+}
