@@ -18,7 +18,9 @@ workflows:
       - name: Install CocoaPods dependencies
         script: |
           cd toolbox_app/ios
-          pod install
+          # Ensure platform target is 13.0 (required by cloud_firestore / Firebase SDK)
+          sed -i '' "s/platform :ios, '[^']*'/platform :ios, '13.0'/" Podfile || true
+          pod install --repo-update
 
       - name: Build iOS (no code signing)
         script: |
